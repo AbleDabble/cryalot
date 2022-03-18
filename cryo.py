@@ -8,11 +8,14 @@ from getpass import getpass
 import json
 import zipfile
 import struct
+import pyperclip
+import sys
 
 parser = argparse.ArgumentParser(description='Cryo is a password manager for your terminal')
 parser.add_argument('-a', '--add', action='store_true', help='Add a password/username combo to the database')
 parser.add_argument('-g', '--get', action='store_true', help='Get a password/username combo from the database')
 parser.add_argument('-d', '--dlt', action='store_true', help='Delete a password/username combo from the database')
+parser.add_argument('-c', '--copy', action='store_true', help='Copy a password to the clipboard')
 parser.add_argument('-l', '--list', action='store_true', help='List all password/username combos in the database')
 parser.add_argument('-p', '--pswd', action='store_true', help='Set your password')
 
@@ -96,7 +99,7 @@ def getKey(password):
             content = z.read()
     content = json.loads(Fernet(password).decrypt(content))
     print("Username: " + content['username'])
-    print("Password: " + content['password'])
+    return content['password']
 
 def listKeys(password):
     with zipfile.ZipFile('passwords.zip', 'r') as f:
@@ -115,12 +118,17 @@ if __name__ == '__main__':
     password = getpass()
     password = generateKey(password)
     if not checkPassword(password):
-        print("password not correct")
+        print("Password not correct")
         exit()
     if args.add:
         addKey(password)
     elif args.get:
-        getKey(password)
+        password = getKey(password)
+        if args.copy:
+            pyperclip.copy(password)
+            print("Password copied to clipboard")
+            exit()
+        print("Password: " + password)
     elif args.dlt:
         delKey(password)
     elif args.list:
