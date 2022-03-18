@@ -77,18 +77,18 @@ def setPassword():
     return
 
 def addKey(key):
-    print("Enter the entry name (case ignored) this will be used to lookup the password later")
+    print()
     name = input('Entry name: ')
     name = name.lower()
     username = input('Username: ')
-    password = getpass("Password (leave blank to auto-generate password: ")
+    password = getpass("Password: ")
     if password == '':
-        password = Fernet.generate_key().decode()
+        password = Fernet.generate_key().decode()[:32]
     elif getpass('Confirm Password: ') != password:
         print('Passwords do not match')
         exit()
     f = Fernet(key)
-    content = f.encrypt(json.dumps({'username':username, 'password':password}).encode())
+    content = f.encrypt(json.dumps({'username':username, 'password':password, 'name':name}).encode())
     digest = hashes.Hash(hashes.SHA256())
     digest.update(name.encode())
     name = digest.finalize().hex()[:16]
@@ -112,11 +112,25 @@ def listKeys(password):
     with zipfile.ZipFile('passwords.zip', 'r') as f:
         for name in f.namelist():
             content = json.loads(Fernet(password).decrypt(f.read(name)))
-            print("Entry: " + name)
+            print("Entry: " + content['name'])
             print("Username: " + content['username'])
             print("Password: " + content['password'])
             print()
-        
+
+def delKey(password):
+    name = input('Entry (case ignored): ')
+    digest = hashes.Hash(hashes.SHA256())
+    digest.update(name.encode())
+    name = digest.finalize().hex()[:16]
+    with zipfile.ZipFile('passwords.zip', 'r') as old:
+        with zipfile.ZipFile('passwords2.zip', 'a') as new:
+            for file in old.namelist():
+                if file != name:
+                    new.writestr(file, old.readfile(file))
+    os.remove('passwords.zip')
+    os.rename('passwords2.zip', 'passwords.zip')
+    print("password deleted")
+
 if __name__ == '__main__':
     args = parser.parse_args()
     if args.pswd:
