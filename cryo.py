@@ -1,3 +1,4 @@
+from re import A
 from cryptography.fernet import Fernet
 import base64
 import os
@@ -34,6 +35,13 @@ def generateKey(password):
         iterations=390000,
     )
     return base64.urlsafe_b64encode(kdf.derive(password.encode()))
+
+def generateName(name, password):
+    with zipfile.ZipFile('passwords.zip', 'r') as f:
+        token = f.read('cry.pwd')
+    digest = hashes.Hash(hashes.SHA256())
+    digest.update(name.encode() + Fernet(password).decrypt(token))
+    return digest.finalize().hex()[:16]
 
 def checkPassword(password):
     try:
@@ -93,22 +101,19 @@ def addKey(key):
         password = Fernet.generate_key().decode()[:32]
     f = Fernet(key)
     content = f.encrypt(json.dumps({'username':username, 'password':password, 'name':name}).encode())
-    digest = hashes.Hash(hashes.SHA256())
-    digest.update(name.encode())
-    name = digest.finalize().hex()[:16]
+    name = generateName(name, key)
     with zipfile.ZipFile('passwords.zip', 'a') as f:
         f.writestr(name, content.decode())
     print("password added")
 
 def getKey(password):
     name = input('Enter the entry name (case ignored): ')
-    digest = hashes.Hash(hashes.SHA256())
-    digest.update(name.encode())
-    name = digest.finalize().hex()[:16]
+    name = generateName(name, password)
     with zipfile.ZipFile('passwords.zip', 'a') as f:
         with f.open(name) as z:
             content = z.read()
     content = json.loads(Fernet(password).decrypt(content))
+    print()
     print("Username: " + content['username'])
     return content['password']
 
@@ -125,9 +130,7 @@ def listKeys(password):
 
 def delKey(password):
     name = input('Entry (case ignored): ')
-    digest = hashes.Hash(hashes.SHA256())
-    digest.update(name.encode())
-    name = digest.finalize().hex()[:16]
+    name = generateName(name, password)
     with zipfile.ZipFile('passwords.zip', 'r') as old:
         with zipfile.ZipFile('passwords2.zip', 'a') as new:
             for file in old.namelist():
