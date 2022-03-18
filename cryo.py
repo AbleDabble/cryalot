@@ -152,10 +152,8 @@ def addKey(key):
     with zipfile.ZipFile('passwords.zip', 'a') as f:
         if name in f.namelist():
             print("name already exists")
-            overwrite = input("Overwrite? (y/n) ")
-            if overwrite.lower != 'y':
-                print("Cancelling entry")
-                return
+            print("cannot overwrite entry -- please specify a different entry name")
+            return
         f.writestr(name, content.decode())
     print("password added")
 
