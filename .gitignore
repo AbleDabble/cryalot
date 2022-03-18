@@ -129,5 +129,6 @@ dmypy.json
 .pyre/
 
 # cryalot
-.json
-.pwd
+*.json
+*.pwd
+*.zip
