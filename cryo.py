@@ -74,7 +74,8 @@ def setPassword():
         key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
         # print(key)
         f = Fernet(key)
-        token = f.encrypt(b'CHEESE')
+        secure_message = os.urandom(32)
+        token = f.encrypt(secure_message)
         with zipfile.ZipFile('passwords.zip', 'a') as f:
             f.writestr('cry.pwd', token)
             data = {'salt': int.from_bytes(salt, 'big')}
@@ -90,9 +91,6 @@ def addKey(key):
     password = getpass("Password: ")
     if password == '':
         password = Fernet.generate_key().decode()[:32]
-    elif getpass('Confirm Password: ') != password:
-        print('Passwords do not match')
-        exit()
     f = Fernet(key)
     content = f.encrypt(json.dumps({'username':username, 'password':password, 'name':name}).encode())
     digest = hashes.Hash(hashes.SHA256())
@@ -117,11 +115,13 @@ def getKey(password):
 def listKeys(password):
     with zipfile.ZipFile('passwords.zip', 'r') as f:
         for name in f.namelist():
+            if name.endswith('.json') or name.endswith('.pwd'):
+                continue
             content = json.loads(Fernet(password).decrypt(f.read(name)))
+            print()
             print("Entry: " + content['name'])
             print("Username: " + content['username'])
             print("Password: " + content['password'])
-            print()
 
 def delKey(password):
     name = input('Entry (case ignored): ')
