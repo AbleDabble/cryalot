@@ -150,11 +150,18 @@ def addKey(key):
     content = f.encrypt(json.dumps({'username':username, 'password':password, 'name':name}).encode())
     name = generateName(name, key)
     with zipfile.ZipFile('passwords.zip', 'a') as f:
+        if name in f.namelist():
+            print("name already exists")
+            overwrite = input("Overwrite? (y/n) ")
+            if overwrite.lower != 'y':
+                print("Cancelling entry")
+                return
         f.writestr(name, content.decode())
     print("password added")
 
 def getKey(password):
-    name = input('Enter the entry name (case ignored): ')
+    print()
+    name = input('Entry: ')
     name = generateName(name, password)
     with zipfile.ZipFile('passwords.zip', 'a') as f:
         with f.open(name) as z:
