@@ -79,6 +79,7 @@ def setPassword():
 def addKey(key):
     print("Enter the entry name (case ignored) this will be used to lookup the password later")
     name = input('Entry name: ')
+    name = name.lower()
     username = input('Username: ')
     password = getpass("Password (leave blank to auto-generate password: ")
     if password == '':
@@ -88,12 +89,18 @@ def addKey(key):
         exit()
     f = Fernet(key)
     content = f.encrypt(json.dumps({'username':username, 'password':password}).encode())
-    with zipfile.ZipFile('passwords.zip', 'w') as f:
+    digest = hashes.Hash(hashes.SHA256())
+    digest.update(name.encode())
+    name = digest.finalize().hex()[:16]
+    with zipfile.ZipFile('passwords.zip', 'a') as f:
         f.writestr(name, content.decode())
     print("password added")
 
 def getKey(password):
     name = input('Enter the entry name (case ignored): ')
+    digest = hashes.Hash(hashes.SHA256())
+    digest.update(name.encode())
+    name = digest.finalize().hex()[:16]
     with zipfile.ZipFile('passwords.zip', 'a') as f:
         with f.open(name) as z:
             content = z.read()
