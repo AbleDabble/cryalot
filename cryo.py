@@ -20,9 +20,13 @@ parser.add_argument('-l', '--list', action='store_true', help='List all password
 parser.add_argument('-p', '--pswd', action='store_true', help='Set your password')
 
 def generateKey(password):
-    with open('cry.json', 'r') as f:
-        data = json.load(f)
-        salt = int.to_bytes(data['salt'], 16, 'big')
+    # with open('cry.json', 'r') as f:
+    #     data = json.load(f)
+    #     salt = int.to_bytes(data['salt'], 16, 'big')
+    with zipfile.ZipFile('passwords.zip', 'r') as f:
+        with f.open('cry.json', 'r') as s:
+            content = json.loads(s.read())
+            salt = int.to_bytes(content['salt'], 16, 'big')
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
@@ -33,8 +37,8 @@ def generateKey(password):
 
 def checkPassword(password):
     try:
-        with open("cry.pwd", 'rb') as f:
-            token = f.read()
+        with zipfile.ZipFile('passwords.zip', 'r') as f:
+            token = f.read('cry.pwd')
         try: 
             Fernet(password).decrypt(token)
             return True
@@ -47,9 +51,12 @@ def checkPassword(password):
         
 def setPassword():
     try:
-        with open('cry.json', 'r') as f:
-            print("password already set")
-            # TODO allow changing password
+        # with open('cry.json', 'r') as f:
+        #     print("password already set")
+        #     # TODO allow changing password
+        #     return
+        with zipfile.ZipFile('passwords.zip', 'r') as f:
+            print("Password already set")
             return
     except:
         password = getpass()
@@ -68,11 +75,10 @@ def setPassword():
         # print(key)
         f = Fernet(key)
         token = f.encrypt(b'CHEESE')
-        with open('cry.pwd', 'wb') as f:
-            f.write(token)
-        data = {'salt': int.from_bytes(salt, 'big')}
-        with open('cry.json', 'w') as f:
-            json.dump(data, f)
+        with zipfile.ZipFile('passwords.zip', 'a') as f:
+            f.writestr('cry.pwd', token)
+            data = {'salt': int.from_bytes(salt, 'big')}
+            f.writestr('cry.json', json.dumps(data))
         print("password set")
     return
 
