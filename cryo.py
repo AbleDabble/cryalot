@@ -1,4 +1,5 @@
 from re import A
+from tabnanny import check
 from cryptography.fernet import Fernet
 import base64
 import os
@@ -36,8 +37,8 @@ def generateKey(password):
     )
     return base64.urlsafe_b64encode(kdf.derive(password.encode()))
 
-def generateName(name, password):
-    with zipfile.ZipFile('passwords.zip', 'r') as f:
+def generateName(name, password, filename='passwords.zip'):
+    with zipfile.ZipFile(filename, 'r') as f:
         token = f.read('cry.pwd')
     digest = hashes.Hash(hashes.SHA256())
     digest.update(name.encode() + Fernet(password).decrypt(token))
@@ -56,39 +57,85 @@ def checkPassword(password):
         print("please set a password")
         print("cryo -p")
         return False
-        
+
+
+def savePassword(password, filename='passwords.zip'):
+    print("Saving password")
+    salt = os.urandom(16)
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=390000,
+    )
+    key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
+    secure_message = os.urandom(32)
+    with zipfile.ZipFile(filename, 'a') as f:
+        with f.open('cry.pwd', 'w') as c:
+            c.write(Fernet(key).encrypt(secure_message))
+        with f.open('cry.json', 'w') as c:
+            c.write(json.dumps({'salt': int.from_bytes(salt, 'big')}).encode())
+    return key
+
+def changePassword():
+    for i in range(3):
+        old_pass = getpass("Current Password: ")
+        if checkPassword(generateKey(old_pass)):
+           break 
+        print("incorrect password")
+    else:
+        print("too many incorrect passwords")
+        return
+    while True:
+        new_pass = getpass("New Password: ")
+        if new_pass == getpass("Confirm Password: "):
+            break
+        print("passwords do not match")
+    new_key = savePassword(new_pass, filename='passwords2.zip')
+    old_key = generateKey(old_pass)
+    with zipfile.ZipFile('passwords.zip', 'r') as old:
+        with zipfile.ZipFile('passwords2.zip', 'a') as new:
+            for name in old.namelist():
+                if name.endswith('.pwd') or name.endswith('.json'):
+                    continue
+                with old.open(name) as f:
+                    content = f.read()
+                data = json.loads(Fernet(old_key).decrypt(content))
+                new.writestr(generateName(data['name'], new_key, 'passwords2.zip'), 
+                    Fernet(new_key).encrypt(json.dumps(data).encode()))
+    os.remove('passwords.zip')
+    os.rename('passwords2.zip', 'passwords.zip')
+    print("password changed")
+
+    
 def setPassword():
-    try:
-        # with open('cry.json', 'r') as f:
-        #     print("password already set")
-        #     # TODO allow changing password
-        #     return
-        with zipfile.ZipFile('passwords.zip', 'r') as f:
-            print("Password already set")
-            return
-    except:
+    if os.path.exists('passwords.zip'):
+        changePassword()
+        return
+    
+    while True:
         password = getpass()
-        if password != getpass("Confirm password: "):
-            print("passwords do not match")
-            return
-        
-        salt = os.urandom(16)
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            iterations=390000,
-        )
-        key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
-        # print(key)
-        f = Fernet(key)
-        secure_message = os.urandom(32)
-        token = f.encrypt(secure_message)
-        with zipfile.ZipFile('passwords.zip', 'a') as f:
-            f.writestr('cry.pwd', token)
-            data = {'salt': int.from_bytes(salt, 'big')}
-            f.writestr('cry.json', json.dumps(data))
-        print("password set")
+        if password == getpass("Confirm password: "):
+            break
+        print("passwords do not match")
+        return
+    salt = os.urandom(16)
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=390000,
+    )
+    key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
+    # print(key)
+    f = Fernet(key)
+    secure_message = os.urandom(32)
+    token = f.encrypt(secure_message)
+    with zipfile.ZipFile('passwords.zip', 'a') as f:
+        f.writestr('cry.pwd', token)
+        data = {'salt': int.from_bytes(salt, 'big')}
+        f.writestr('cry.json', json.dumps(data))
+    print("password set")
     return
 
 def addKey(key):
