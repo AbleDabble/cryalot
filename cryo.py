@@ -189,6 +189,10 @@ def delKey(password):
 
 if __name__ == '__main__':
     args = parser.parse_args()
+    if not os.path.exists('passwords.zip'):
+        print("Please set a password")
+        setPassword()
+        exit()
     if args.pswd:
         setPassword()
         exit()
@@ -210,3 +214,5 @@ if __name__ == '__main__':
         delKey(password)
     elif args.list:
         listKeys(password)
+    else:
+        parser.print_help()
